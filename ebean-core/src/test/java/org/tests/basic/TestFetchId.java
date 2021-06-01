@@ -25,6 +25,7 @@ public class TestFetchId extends BaseTestCase {
       .fetch("details")
       .where().gt("id", 1)
       .gt("details.id", 0)
+      .orderBy("orderDate")
       .query();
 
     List<Object> ids = query.findIds();

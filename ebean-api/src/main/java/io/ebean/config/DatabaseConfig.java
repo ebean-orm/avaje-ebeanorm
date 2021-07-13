@@ -195,9 +195,8 @@ public class DatabaseConfig {
 
   /**
    * When true then by default DbJson beans are assumed to be dirty.
-   * I believe we want to change this default to false in the future.
    */
-  private boolean jsonDirtyByDefault = true;
+  private boolean jsonDirtyByDefault;
 
   /**
    * The database platform name. Used to imply a DatabasePlatform to use.
@@ -746,15 +745,16 @@ public class DatabaseConfig {
   /**
    * Return true if DbJson beans are assumed dirty by default.
    * <p>
-   * That is, when true beans that do not implement ModifyAwareType are by
-   * default assumed to be dirty and included in updates.
+   * That is, when true DbJson bean properties that do not implement
+   * ModifyAwareType are by default assumed to be dirty and included
+   * in updates.
    */
   public boolean isJsonDirtyByDefault() {
     return jsonDirtyByDefault;
   }
 
   /**
-   * Set to false if we want DbJson beans to not be assumed to be dirty.
+   * Set to true if we want DbJson beans to be assumed to be dirty.
    * <p>
    * That is, when true beans that do not implement ModifyAwareType are by
    * default assumed to be dirty and included in updates.

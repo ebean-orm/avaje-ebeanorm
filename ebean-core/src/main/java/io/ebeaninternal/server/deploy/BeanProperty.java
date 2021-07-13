@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import io.ebean.ValuePair;
 import io.ebean.bean.EntityBean;
 import io.ebean.bean.EntityBeanIntercept;
+import io.ebean.bean.MutableValue;
 import io.ebean.bean.PersistenceContext;
 import io.ebean.config.EncryptKey;
 import io.ebean.config.dbplatform.DbEncryptFunction;
@@ -640,6 +641,10 @@ public class BeanProperty implements ElPropertyValue, Property, STreeProperty {
   public Object read(DbReadContext ctx) throws SQLException {
     return scalarType.read(ctx.getDataReader());
   }
+  
+  public MutableValue readMutable(DbReadContext ctx) throws SQLException {
+    return scalarType.readMutable(ctx.getDataReader());
+  }
 
   public Object readSet(DbReadContext ctx, EntityBean bean) throws SQLException {
     try {
@@ -759,7 +764,7 @@ public class BeanProperty implements ElPropertyValue, Property, STreeProperty {
       throw new RuntimeException(setterErrorMsg(bean, value, "set "), ex);
     }
   }
-
+  
   /**
    * Set the value of the property.
    */
@@ -771,6 +776,10 @@ public class BeanProperty implements ElPropertyValue, Property, STreeProperty {
     }
   }
 
+  public void setMutableOrigValue(EntityBean bean, MutableValue mutableValue) {
+    bean._ebean_getIntercept().setOriginalValue(propertyIndex, mutableValue);
+  }
+  
   /**
    * Return an error message when calling a setter.
    */
@@ -1016,10 +1025,10 @@ public class BeanProperty implements ElPropertyValue, Property, STreeProperty {
 
   /**
    * Return true if the mutable value is considered dirty.
-   * This is only used for 'mutable' scalar types like hstore etc.
+   * This is only used for 'mutable' scalar types like hstore or json etc.
    */
-  boolean isDirtyValue(Object value) {
-    return scalarType.isDirty(value);
+  boolean isDirtyValue(EntityBeanIntercept ebi, Object value) {
+    return ebi.isDirtyValue(propertyIndex, value);
   }
 
   /**

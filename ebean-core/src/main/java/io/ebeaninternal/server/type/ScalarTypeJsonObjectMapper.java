@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.introspect.AnnotatedField;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.core.type.DataBinder;
 import io.ebean.core.type.DataReader;
 import io.ebean.core.type.DocPropertyType;
@@ -167,6 +169,46 @@ class ScalarTypeJsonObjectMapper {
       } catch (IOException e) {
         throw new TextException("Failed to parse JSON [{}] as " + deserType, json, e);
       }
+    }
+    
+    public MutableValue readMutable(DataReader reader) throws SQLException {
+      String json = reader.getString();
+      if (json == null || json.isEmpty()) {
+        return null;
+      }
+      return new MutableValue() {
+        private String ref = json;
+        @Override
+        public boolean isEqual(Object object, boolean update) {
+          try {
+            if (update) {
+              String newJson = objectWriter.writeValueAsString(object);
+              if (ref.equals(newJson)) {
+                return true;
+              } else {
+                ref = newJson;
+                return false;
+              }
+            } else {
+              return ref.equals(objectWriter.writeValueAsString(object));
+            }
+          } catch (IOException e) {
+            throw new TextException("Failed to serialize JSON object [{}]", object.getClass().getName(), e);
+          }
+        }
+
+        @Override
+        public Object get() {
+          try {
+            return objectReader.readValue(ref, deserType);
+          } catch (IOException e) {
+            throw new TextException("Failed to parse JSON [{}] as " + deserType, ref, e);
+          }
+        }
+        
+ 
+      };
+
     }
 
     @Override

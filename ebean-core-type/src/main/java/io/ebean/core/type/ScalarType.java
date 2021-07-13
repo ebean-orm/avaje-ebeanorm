@@ -2,6 +2,8 @@ package io.ebean.core.type;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.text.StringFormatter;
 import io.ebean.text.StringParser;
 
@@ -97,6 +99,11 @@ public interface ScalarType<T> extends StringParser, StringFormatter, ScalarData
    */
   @Override
   T read(DataReader reader) throws SQLException;
+  
+  /**
+   * Reads the value as mutable value.
+   */
+  MutableValue readMutable(DataReader reader) throws SQLException;
 
   /**
    * Ignore the reading of this value. Typically this means moving the index

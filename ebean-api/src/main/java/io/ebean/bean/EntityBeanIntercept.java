@@ -37,7 +37,7 @@ public final class EntityBeanIntercept implements Serializable {
    */
   private static final byte FLAG_LOADED_PROP = 1;
   private static final byte FLAG_CHANGED_PROP = 2;
-  private static final byte FLAG_CHANGEDLOADED_PROP = 3;
+
   /**
    * Flags indicating if a property is a dirty embedded bean. Used to distinguish
    * between an embedded bean being completely overwritten and one of its
@@ -50,7 +50,12 @@ public final class EntityBeanIntercept implements Serializable {
    * embedded properties being made dirty.
    */
   private static final byte FLAG_ORIG_VALUE_SET = 8;
-
+  
+  /**
+   * Flags indicating if a property has a mutable value set.
+   */
+  private static final byte FLAG_MUTABLE_VALUE = 16;
+  
   private transient final ReentrantLock lock = new ReentrantLock();
   private transient NodeUsageCollector nodeUsageCollector;
   private transient PersistenceContext persistenceContext;
@@ -367,7 +372,7 @@ public final class EntityBeanIntercept implements Serializable {
     this.state = STATE_LOADED;
     this.owner._ebean_setEmbeddedLoaded();
     this.lazyLoadProperty = -1;
-    this.origValues = null;
+    // this.origValues = null; // TODO: Clear only non mutable values
     for (int i = 0; i < flags.length; i++) {
       flags[i] &= ~(FLAG_CHANGED_PROP + FLAG_ORIG_VALUE_SET);
     }
@@ -445,7 +450,12 @@ public final class EntityBeanIntercept implements Serializable {
     if (origValues == null) {
       return null;
     }
-    return origValues[propertyIndex];
+    Object ret = origValues[propertyIndex];
+    if (ret instanceof MutableValue) {
+      return ((MutableValue) ret).get();
+    } else {
+      return ret;
+    }
   }
 
   /**
@@ -552,7 +562,7 @@ public final class EntityBeanIntercept implements Serializable {
   }
 
   private void setChangeLoaded(int propertyIndex) {
-    flags[propertyIndex] |= FLAG_CHANGEDLOADED_PROP;
+    flags[propertyIndex] |= FLAG_CHANGED_PROP | FLAG_LOADED_PROP;
   }
 
   /**
@@ -562,12 +572,15 @@ public final class EntityBeanIntercept implements Serializable {
     flags[propertyIndex] |= FLAG_EMBEDDED_DIRTY;
   }
 
-  private void setOriginalValue(int propertyIndex, Object value) {
+  public void setOriginalValue(int propertyIndex, Object value) {
     if (origValues == null) {
       origValues = new Object[owner._ebean_getPropertyNames().length];
     }
     if ((flags[propertyIndex] & FLAG_ORIG_VALUE_SET) == 0) {
       flags[propertyIndex] |= FLAG_ORIG_VALUE_SET;
+      if (value instanceof MutableValue) {
+        flags[propertyIndex] |= FLAG_MUTABLE_VALUE;
+      }
       origValues[propertyIndex] = value;
     }
   }
@@ -684,12 +697,15 @@ public final class EntityBeanIntercept implements Serializable {
   public void addDirtyPropertyValues(Map<String, ValuePair> dirtyValues, String prefix) {
     int len = getPropertyLength();
     for (int i = 0; i < len; i++) {
-      if ((flags[i] & FLAG_CHANGED_PROP) != 0) {
-        // the property has been changed on this bean
+      if ((flags[i] & (FLAG_CHANGED_PROP | FLAG_MUTABLE_VALUE)) != 0) {
+        // the property has been changed on this bean or may be a mutable value
         String propName = (prefix == null ? getProperty(i) : prefix + getProperty(i));
         Object newVal = owner._ebean_getField(i);
-        Object oldVal = getOrigValue(i);
-        if (notEqual(oldVal, newVal)) {
+        Object oldVal = origValues[i];
+        if (notEqual(oldVal, newVal, false)) {
+          if (oldVal instanceof MutableValue) {
+            oldVal = ((MutableValue) oldVal).get();
+          }
           dirtyValues.put(propName, new ValuePair(newVal, oldVal));
         }
       } else if ((flags[i] & FLAG_EMBEDDED_DIRTY) != 0) {
@@ -709,8 +725,8 @@ public final class EntityBeanIntercept implements Serializable {
       if ((flags[i] & FLAG_CHANGED_PROP) != 0) {
         // the property has been changed on this bean
         Object newVal = owner._ebean_getField(i);
-        Object oldVal = getOrigValue(i);
-        if (notEqual(oldVal, newVal)) {
+        Object oldVal = origValues[i];
+        if (notEqual(oldVal, newVal, false)) {
           visitor.visit(i, newVal, oldVal);
         }
       } else if ((flags[i] & FLAG_EMBEDDED_DIRTY) != 0) {
@@ -849,7 +865,7 @@ public final class EntityBeanIntercept implements Serializable {
    * Helper method to check if two objects are equal.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  protected static boolean notEqual(Object obj1, Object obj2) {
+  protected static boolean notEqual(Object obj1, Object obj2, boolean update) {
     if (obj1 == null) {
       return (obj2 != null);
     }
@@ -872,6 +888,9 @@ public final class EntityBeanIntercept implements Serializable {
     if (obj1 instanceof URL) {
       // use the string format to determine if dirty
       return !obj1.toString().equals(obj2.toString());
+    }
+    if (obj1 instanceof MutableValue) {
+      return !((MutableValue) obj1).isEqual(obj2, update);
     }
     return !obj1.equals(obj2);
   }
@@ -958,7 +977,7 @@ public final class EntityBeanIntercept implements Serializable {
   public void preSetter(boolean intercept, int propertyIndex, Object oldValue, Object newValue) {
     if (state == STATE_NEW) {
       setLoadedProperty(propertyIndex);
-    } else if (notEqual(oldValue, newValue)) {
+    } else if (notEqual(oldValue, newValue, false)) {
       setChangedPropertyValue(propertyIndex, intercept, oldValue);
     }
   }
@@ -1075,6 +1094,7 @@ public final class EntityBeanIntercept implements Serializable {
 
   /**
    * Explicitly set an old value with force (the old value is forced even it is already set).
+   * This is used by generatedProperties
    */
   public void setOldValue(int propertyIndex, Object oldValue) {
     setChangedProperty(propertyIndex);
@@ -1137,5 +1157,36 @@ public final class EntityBeanIntercept implements Serializable {
       }
     }
     return ret;
+  }
+
+  public boolean isDirtyValue(int propertyIndex, Object value) {
+    if (origValues == null) {
+      return true;
+    }
+    Object oldVal = origValues[propertyIndex];
+    return notEqual(oldVal, value, true);
+  }
+  
+  /**
+   * toString for debugging only.
+   */
+  @Override
+  public String toString() {
+    String[] pnames = owner._ebean_getPropertyNames();
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < pnames.length; i++) {
+      sb.append(i).append(':').append(pnames[i]).append(":");
+      if ((flags[i] & FLAG_LOADED_PROP) != 0) sb.append("Loaded,");
+      if ((flags[i] & FLAG_CHANGED_PROP) != 0) sb.append("Changed,");
+      if ((flags[i] & FLAG_EMBEDDED_DIRTY) != 0) sb.append("EmbeddedDirty,");
+      if ((flags[i] & FLAG_ORIG_VALUE_SET) != 0) sb.append("OrigValueSet,");
+      if ((flags[i] & FLAG_MUTABLE_VALUE) != 0) sb.append("MutableValue,");
+      if (sb.charAt(sb.length()-1) == ',') {
+        sb.setLength(sb.length() - 1);
+      }
+      sb.append('\n');
+    }
+    
+    return sb.toString();
   }
 }

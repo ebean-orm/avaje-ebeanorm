@@ -2,6 +2,7 @@ package io.ebeaninternal.server.query;
 
 import io.ebean.bean.EntityBean;
 import io.ebean.bean.EntityBeanIntercept;
+import io.ebean.bean.MutableValue;
 import io.ebeaninternal.api.SpiQuery.Mode;
 import io.ebeaninternal.server.deploy.BeanProperty;
 import io.ebeaninternal.server.deploy.DbReadContext;
@@ -69,15 +70,23 @@ public class SqlBeanLoad {
     }
 
     try {
-      Object dbVal = prop.read(ctx);
+      Object dbVal = null;
       if (!refreshLoading) {
+        if (prop.isMutableScalarType()) {
+          MutableValue mutableValue = prop.readMutable(ctx);
+          if (mutableValue != null) {
+            dbVal = mutableValue.get();
+            prop.setMutableOrigValue(bean, mutableValue);
+          }
+        } else {
+          dbVal = prop.read(ctx);
+        }
         prop.setValue(bean, dbVal);
       } else {
+        dbVal = prop.read(ctx);
         prop.setValueIntercept(bean, dbVal);
       }
-
       return dbVal;
-
     } catch (Exception e) {
       bean._ebean_getIntercept().setLoadError(prop.getPropertyIndex(), e);
       ctx.handleLoadError(prop.getFullBeanName(), e);

@@ -1,5 +1,8 @@
 package io.ebeaninternal.server.type;
 
+import java.sql.SQLException;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.core.type.DataReader;
 import io.ebean.core.type.ScalarType;
 
@@ -39,6 +42,29 @@ public abstract class ScalarTypeBase<T> implements ScalarType<T> {
     return false;
   }
 
+  /**
+   * Must be overridden on mutable types.
+   */
+  @Override
+  public MutableValue readMutable(DataReader reader) throws SQLException {
+    T obj = read(reader);
+    if (obj == null) {
+      return null;
+    }
+    return new MutableValue() {
+      
+      @Override
+      public boolean isEqual(Object object, boolean update) {
+        return !isDirty(object);
+      }
+      
+      @Override
+      public Object get() {
+        return obj;
+      }
+    };
+  }
+  
   /**
    * Default to true.
    */

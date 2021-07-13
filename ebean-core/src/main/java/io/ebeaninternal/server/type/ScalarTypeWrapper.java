@@ -2,6 +2,8 @@ package io.ebeaninternal.server.type;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.config.ScalarTypeConverter;
 import io.ebean.core.type.DataBinder;
 import io.ebean.core.type.DataReader;
@@ -12,6 +14,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Objects;
 
 /**
  * A ScalarType that uses a ScalarTypeConverter to convert to and from another underlying
@@ -157,6 +160,37 @@ public class ScalarTypeWrapper<B, S> implements ScalarType<B> {
     return converter.wrapValue(sv);
   }
 
+  @Override
+  public MutableValue readMutable(DataReader reader) throws SQLException {
+    S sv = scalarType.read(reader);
+    if (sv == null) {
+      return new MutableValue() {
+        
+        @Override
+        public boolean isEqual(Object object, boolean update) {
+          return Objects.equals(nullValue, object);
+        }
+        
+        @Override
+        public Object get() {
+          return nullValue;
+        }
+      };
+    } else {
+      return new MutableValue() {
+        
+        @Override
+        public boolean isEqual(Object object, boolean update) {
+          return Objects.equals(converter.unwrapValue((B) object), object);
+        }
+        
+        @Override
+        public Object get() {
+          return converter.wrapValue(sv);
+        }
+      };
+    }
+  }
   @Override
   @SuppressWarnings("unchecked")
   public B toBeanType(Object value) {

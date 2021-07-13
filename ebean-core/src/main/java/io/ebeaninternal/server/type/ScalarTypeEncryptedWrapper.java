@@ -2,6 +2,8 @@ package io.ebeaninternal.server.type;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.core.type.DataBinder;
 import io.ebean.core.type.DataReader;
 import io.ebean.core.type.DocPropertyType;
@@ -70,6 +72,27 @@ public class ScalarTypeEncryptedWrapper<T> implements ScalarType<T>, LocalEncryp
       return null;
     }
     return wrapped.parse(formattedValue);
+  }
+  
+  @Override
+  public MutableValue readMutable(DataReader reader) throws SQLException {
+    byte[] data = reader.getBytes();
+    String formattedValue = dataEncryptSupport.decryptObject(data);
+    if (formattedValue == null) {
+      return null;
+    }
+    return new MutableValue() {
+      
+      @Override
+      public boolean isEqual(Object object, boolean update) {
+        return formattedValue.equals(wrapped.format(object));
+      }
+      
+      @Override
+      public Object get() {
+        return wrapped.parse(formattedValue);
+      }
+    };
   }
 
   private byte[] encrypt(T value) {

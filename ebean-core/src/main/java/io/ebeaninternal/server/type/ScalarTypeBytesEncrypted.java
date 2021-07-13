@@ -2,6 +2,8 @@ package io.ebeaninternal.server.type;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+
+import io.ebean.bean.MutableValue;
 import io.ebean.core.type.DataBinder;
 import io.ebean.core.type.DataReader;
 import io.ebean.core.type.DocPropertyType;
@@ -125,6 +127,11 @@ public class ScalarTypeBytesEncrypted implements ScalarType<byte[]> {
     byte[] data = baseType.read(reader);
     data = dataEncryptSupport.decrypt(data);
     return data;
+  }
+  
+  @Override
+  public MutableValue readMutable(DataReader reader) throws SQLException {
+    throw new UnsupportedOperationException();
   }
 
   @Override

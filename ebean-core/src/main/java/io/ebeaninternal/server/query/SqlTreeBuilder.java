@@ -311,7 +311,7 @@ public final class SqlTreeBuilder {
 
     } else {
       // do not read Id on child beans (e.g. when used with fetch())
-      boolean withId = isNotSingleAttribute();
+      boolean withId = isNotSingleAttribute() && !subQuery;
       return new SqlTreeNodeBean(prefix, prop, props, myList, withId, temporalMode, disableLazyLoad);
     }
   }

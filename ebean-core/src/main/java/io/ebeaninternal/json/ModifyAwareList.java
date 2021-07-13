@@ -13,7 +13,7 @@ import java.util.Objects;
 /**
  * Modify aware wrapper of a list.
  */
-public class ModifyAwareList<E> implements List<E>, ModifyAwareType, Serializable {
+public class ModifyAwareList<E> implements List<E>, ModifyAwareWrapper, Serializable {
 
   private static final long serialVersionUID = 1;
 
@@ -198,5 +198,10 @@ public class ModifyAwareList<E> implements List<E>, ModifyAwareType, Serializabl
    */
   public ModifyAwareSet<E> asSet() {
     return new ModifyAwareSet<>(owner, new LinkedHashSet<>(list));
+  }
+  
+  @Override
+  public Object unwrap() {
+    return list;
   }
 }

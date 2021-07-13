@@ -55,7 +55,6 @@ public class TestDbJson_Jackson3 extends BaseTestCase {
 
   @Test
   public void updateIncludesJsonColumn_when_loadedAndNotDirtyAware() {
-
     PlainBean contentBean = new PlainBean("a", 42);
     EBasicJsonList bean = new EBasicJsonList();
     bean.setName("p1");
@@ -63,17 +62,39 @@ public class TestDbJson_Jackson3 extends BaseTestCase {
     bean.setBeanList(Arrays.asList(contentBean));
 
     DB.save(bean);
-    final EBasicJsonList found = DB.find(EBasicJsonList.class, bean.getId());
+    
+    EBasicJsonList found = DB.find(EBasicJsonList.class, bean.getId());
     // json bean not modified but not aware
     // ideally don't load the json content if we are not going to modify it
     found.setName("p1-mod");
-    found.setBeanList(null);
 
     LoggedSql.start();
     DB.save(found);
 
-    final List<String> sql = LoggedSql.stop();
+    List<String> sql = LoggedSql.stop();
     assertThat(sql).hasSize(1);
-    assertThat(sql.get(0)).contains("update ebasic_json_list set name=?, bean_list=?, plain_bean=?, version=? where id=?");
+    assertThat(sql.get(0)).contains("update ebasic_json_list set name=?, version=? where id=?");
+
+    // reload again and modify the plainBean
+    found = DB.find(EBasicJsonList.class, bean.getId());
+    found.getPlainBean().setName("b");
+
+    LoggedSql.start();
+    DB.save(found);
+
+    sql = LoggedSql.stop();
+    assertThat(sql).hasSize(1);
+    assertThat(sql.get(0)).contains("update ebasic_json_list set plain_bean=?, version=? where id=?");
+    
+    // if we do not reload, subsequent saves will save all dirty properties.
+    found.getBeanList().add(contentBean);
+
+    LoggedSql.start();
+    DB.save(found);
+
+    sql = LoggedSql.stop();
+    assertThat(sql).hasSize(1);
+    assertThat(sql.get(0)).contains("update ebasic_json_list set bean_list=?, plain_bean=?, version=? where id=?");
+
   }
 }

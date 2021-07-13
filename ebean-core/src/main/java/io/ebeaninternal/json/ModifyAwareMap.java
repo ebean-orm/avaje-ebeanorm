@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * Map that is wraps an underlying map for the purpose of detecting changes.
  */
-public class ModifyAwareMap<K, V> implements Map<K, V>, ModifyAwareType, Serializable {
+public class ModifyAwareMap<K, V> implements Map<K, V>, ModifyAwareWrapper, Serializable {
 
   private static final long serialVersionUID = 1;
 
@@ -139,4 +139,8 @@ public class ModifyAwareMap<K, V> implements Map<K, V>, ModifyAwareType, Seriali
     return new ModifyAwareSet<>(this, map.entrySet());
   }
 
+  @Override
+  public Object unwrap() {
+    return map;
+  }
 }

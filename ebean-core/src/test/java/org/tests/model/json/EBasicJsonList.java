@@ -7,6 +7,9 @@ import io.ebean.annotation.DbJsonType;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Version;
+
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -23,7 +26,8 @@ public class EBasicJsonList {
   String name;
 
   @DbJson(length = 700, name = "beans")
-  Set<PlainBean> beanSet;
+  @JsonDeserialize(as = LinkedHashSet.class)
+  Set<PlainBean> beanSet = new LinkedHashSet<>();
 
   @DbJsonB
   List<PlainBean> beanList;

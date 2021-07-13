@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * Wraps a Set for the purposes of detecting modifications.
  */
-public class ModifyAwareSet<E> implements Set<E>, ModifyAwareType, Serializable {
+public class ModifyAwareSet<E> implements Set<E>, ModifyAwareWrapper, Serializable {
 
   private static final long serialVersionUID = 1;
 
@@ -168,5 +168,10 @@ public class ModifyAwareSet<E> implements Set<E>, ModifyAwareType, Serializable 
   @Override
   public <T> T[] toArray(T[] a) {
     return set.toArray(a);
+  }
+  
+  @Override
+  public Object unwrap() {
+    return set;
   }
 }

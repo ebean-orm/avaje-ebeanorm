@@ -149,11 +149,12 @@ class ScalarTypeJsonObjectMapper {
     }
 
     /**
-     * Return true if the value should be considered dirty (and included in an update).
+     * Return true if the value should be considered dirty (and included in an
+     * update).
      */
     @Override
     public boolean isDirty(Object value) {
-      return dirtyHandler.isDirty(value);
+      return dirtyHandler.isDirty(value, objectWriter);
     }
 
     @Override
@@ -163,12 +164,14 @@ class ScalarTypeJsonObjectMapper {
         return null;
       }
       try {
-        return objectReader.readValue(json, deserType);
+        T ret = objectReader.readValue(json, deserType);
+        dirtyHandler.track(ret,json);
+        return ret;
       } catch (IOException e) {
         throw new TextException("Failed to parse JSON [{}] as " + deserType, json, e);
       }
     }
-
+    
     @Override
     public void bind(DataBinder binder, T value) throws SQLException {
       if (pgType != null) {
